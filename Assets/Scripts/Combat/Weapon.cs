@@ -7,12 +7,14 @@ namespace Combat
     /// 무기 스크립트입니다. 플레이어의 공격 애니메이션과 연동하여 충돌 판정을 제어합니다.
     /// </summary>
     [RequireComponent(typeof(Collider))]
+    [RequireComponent(typeof(Rigidbody))] // Physics Trigger needs RB
     public class Weapon : MonoBehaviour
     {
         [Header("Settings")]
         [SerializeField] private float damage = 10f;
 
         private Collider _collider;
+        private Rigidbody _rb;
         private bool _isAttacking = false;
         private HashSet<IDamageable> _hitTargets; // 한 번의 공격으로 중복 타격을 방지하기 위함
 
@@ -21,6 +23,12 @@ namespace Combat
             _collider = GetComponent<Collider>();
             _collider.isTrigger = true; // 무기는 트리거로 작동
             _collider.enabled = false; // 기본적으로 꺼둠
+            
+            _rb = GetComponent<Rigidbody>();
+            if (_rb == null) _rb = gameObject.AddComponent<Rigidbody>();
+            _rb.useGravity = false;
+            _rb.isKinematic = true; // 물리 힘에 영향받지 않음
+            
             _hitTargets = new HashSet<IDamageable>();
         }
 

@@ -34,9 +34,14 @@ namespace Combat
         protected override void Die()
         {
             base.Die();
-            // 샌드백은 죽어도 사라지지 않고 로그만 남김 (또는 리셋)
-            Debug.Log("Sandbag Defeated! Resetting HP...");
-            // 실제 게임에서는 Destroy(gameObject) 등을 사용할 수 있음
+            Debug.Log("Sandbag Defeated! Resetting HP in 2 seconds...");
+            StartCoroutine(RestoreRoutine());
+        }
+
+        private System.Collections.IEnumerator RestoreRoutine()
+        {
+            yield return new WaitForSeconds(2f);
+            Revive();
         }
 
         private System.Collections.IEnumerator FlashColor(Color targetColor, float duration)

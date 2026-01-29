@@ -13,7 +13,10 @@ namespace Combat
         private bool _isDead;
 
         public float CurrentHealth => _currentHealth;
+        public float MaxHealth => maxHealth;
         public bool IsDead => _isDead;
+
+        public event System.Action<float, float> OnHealthChanged; // current, max
 
         protected virtual void Awake()
         {
@@ -28,6 +31,8 @@ namespace Combat
             _currentHealth -= amount;
             Debug.Log($"[DamageableObject] {name} took {amount} damage. Current Health: {_currentHealth}");
 
+            OnHealthChanged?.Invoke(_currentHealth, maxHealth);
+
             if (_currentHealth <= 0)
             {
                 Die();
@@ -38,7 +43,14 @@ namespace Combat
         {
             _isDead = true;
             Debug.Log($"[DamageableObject] {name} has died.");
-            // 기본 동작은 없음, 상속받은 클래스에서 구현 (예: 애니메이션 재생, 오브젝트 제거 등)
+        }
+
+        public void Revive()
+        {
+            _currentHealth = maxHealth;
+            _isDead = false;
+            OnHealthChanged?.Invoke(_currentHealth, maxHealth);
+            Debug.Log($"[DamageableObject] {name} Revived!");
         }
     }
 }

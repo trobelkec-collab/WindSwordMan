@@ -130,7 +130,8 @@ namespace Controllers
             if (_attackAction == null) return;
 
             // Attack triggered
-            if (_attackAction.triggered)
+            bool debugAttack = Keyboard.current != null && Keyboard.current.kKey.wasPressedThisFrame;
+            if ((_attackAction != null && _attackAction.triggered) || debugAttack)
             {
                 // Check cooldown (from last attack start)
                 if (Time.time < _lastAttackTime + attackCooldown) return;

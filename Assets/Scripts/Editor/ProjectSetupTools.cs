@@ -4,6 +4,7 @@ using UnityEngine.InputSystem;
 using Cinemachine; // Cinemachine 2.x namespace
 using Controllers;
 using Managers;
+using UnityEngine.UI;
 // Trigger Recompile
 
 public class ProjectSetupTools : EditorWindow
@@ -119,9 +120,14 @@ public class ProjectSetupTools : EditorWindow
             composer.m_ScreenX = 0.5f;
             composer.m_ScreenY = 0.5f;
             composer.m_DeadZoneWidth = 0f;
-            composer.m_DeadZoneHeight = 0f;
             composer.m_SoftZoneWidth = 0.8f;
             composer.m_SoftZoneHeight = 0.8f;
+        }
+
+        // 7. Add Zoom Script
+        if (vcamObj.GetComponent<Controllers.CameraZoom>() == null)
+        {
+            vcamObj.AddComponent<Controllers.CameraZoom>();
         }
 
         Debug.Log("Cinemachine (v2) Setup Complete! Check 'CM_PlayerCam' in hierarchy.");
@@ -306,5 +312,151 @@ public class ProjectSetupTools : EditorWindow
         }
 
         Debug.Log("Camera Force Reset Complete. Please check Game View.");
+    }
+
+    [MenuItem("Tools/Edo Highway/Setup Hex Grid")]
+    public static void SetupHexGrid()
+    {
+        // 1. Find or Create Manager
+        GameObject managerObj = GameObject.Find("HexGridManager");
+        if (managerObj == null)
+        {
+            managerObj = new GameObject("HexGridManager");
+        }
+        
+        Grid.HexGridManager manager = managerObj.GetComponent<Grid.HexGridManager>();
+        if (manager == null)
+            manager = managerObj.AddComponent<Grid.HexGridManager>();
+
+        // 2. Prepare Tile Prefab
+        // Unlike setup scripts, we need a prefab asset or a scene object to clone.
+        // Let's create a temporary primitive in scene, make it a child of Manager, and use it as template?
+        // Or better: Create a rudimentary prefab in Resources if possible?
+        // For simplicity: Create a "TileTemplate" object in scene, hide it, and use it.
+        
+        Transform templateTr = managerObj.transform.Find("TileTemplate");
+        Grid.HexTile tileTemplate;
+        
+        if (templateTr == null)
+        {
+            GameObject templateObj = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            templateObj.name = "TileTemplate";
+            templateObj.transform.SetParent(managerObj.transform);
+            
+            // Hex shape approximation: Cylinder scaled Y is flat
+            templateObj.transform.localScale = new Vector3(1, 0.1f, 1); 
+            
+            // Add component
+            tileTemplate = templateObj.AddComponent<Grid.HexTile>();
+            
+            // Disable mesh? No, we want to copy it.
+            // Just deactivate the template object so it doesn't show up at (0,0)
+            templateObj.SetActive(false); 
+        }
+        else
+        {
+            tileTemplate = templateTr.GetComponent<Grid.HexTile>();
+        }
+
+        // 3. Assign to Manager via SerializedObject (since field is private/serialized)
+        SerializedObject so = new SerializedObject(manager);
+        so.Update();
+        SerializedProperty prefabProp = so.FindProperty("tilePrefab");
+        if (prefabProp != null)
+        {
+            prefabProp.objectReferenceValue = tileTemplate;
+        }
+        so.ApplyModifiedProperties();
+
+        // 4. Generate
+        manager.GenerateGrid();
+        
+        Debug.Log("Hex Grid Setup & Generation Complete!");
+    }
+
+    [MenuItem("Tools/Edo Highway/Setup Health Bars")]
+    public static void SetupHealthBars()
+    {
+        // Setup for Player and Sandbag
+        SetupUnitHealthBar("Player");
+        SetupUnitHealthBar("Sandbag");
+        
+        Debug.Log("Health Bar Setup Complete!");
+    }
+
+    private static void SetupUnitHealthBar(string targetName)
+    {
+        GameObject target = GameObject.Find(targetName);
+        if (target == null) return;
+
+        Combat.DamageableObject damageable = target.GetComponent<Combat.DamageableObject>();
+        if (damageable == null) return;
+
+        // Check if existing canvas
+        Transform existingCanvas = target.transform.Find("HealthCanvas");
+        if (existingCanvas != null) DestroyImmediate(existingCanvas.gameObject);
+
+        // Create Canvas (World Space)
+        GameObject canvasObj = new GameObject("HealthCanvas");
+        canvasObj.transform.SetParent(target.transform);
+        canvasObj.transform.localPosition = new Vector3(0, 2.2f, 0); // Above head
+        
+        Canvas canvas = canvasObj.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.WorldSpace;
+        
+        // Scale down huge canvas
+        RectTransform rect = canvasObj.GetComponent<RectTransform>();
+        rect.sizeDelta = new Vector2(200f, 40f); // 200px wide, 40px high
+        canvasObj.transform.localScale = new Vector3(0.01f, 0.01f, 1f); // Scale down 100x
+
+        // Add BG (Black)
+        GameObject bgObj = new GameObject("Background");
+        bgObj.transform.SetParent(canvasObj.transform, false);
+        Image bgImg = bgObj.AddComponent<Image>();
+        bgImg.color = Color.black;
+        RectTransform bgRect = bgObj.GetComponent<RectTransform>();
+        bgRect.anchorMin = Vector2.zero;
+        bgRect.anchorMax = Vector2.one;
+        bgRect.offsetMin = Vector2.zero;
+        bgRect.offsetMax = Vector2.zero;
+
+        // Add Damage Fill (Red)
+        GameObject dmgObj = new GameObject("DamageFill");
+        dmgObj.transform.SetParent(canvasObj.transform, false);
+        Image dmgImg = dmgObj.AddComponent<Image>();
+        dmgImg.color = Color.red;
+        dmgImg.type = Image.Type.Filled;
+        dmgImg.fillMethod = Image.FillMethod.Horizontal;
+        RectTransform dmgRect = dmgObj.GetComponent<RectTransform>();
+        dmgRect.anchorMin = Vector2.zero;
+        dmgRect.anchorMax = Vector2.one;
+        dmgRect.offsetMin = Vector2.zero;
+        dmgRect.offsetMax = Vector2.zero;
+
+        // Add Health Fill (Green)
+        GameObject hpObj = new GameObject("HealthFill");
+        hpObj.transform.SetParent(canvasObj.transform, false);
+        Image hpImg = hpObj.AddComponent<Image>();
+        hpImg.color = Color.green;
+        hpImg.type = Image.Type.Filled; // Ensure Filled
+        hpImg.fillMethod = Image.FillMethod.Horizontal;
+        RectTransform hpRect = hpObj.GetComponent<RectTransform>();
+        hpRect.anchorMin = Vector2.zero;
+        hpRect.anchorMax = Vector2.one;
+        hpRect.offsetMin = Vector2.zero;
+        hpRect.offsetMax = Vector2.zero;
+
+        // Add Logic Script to Canvas (or separate object, but canvas works)
+        UI.HealthBarUI uiScript = canvasObj.AddComponent<UI.HealthBarUI>();
+        
+        // Assign References via SerializedObject
+        SerializedObject so = new SerializedObject(uiScript);
+        so.Update();
+        so.FindProperty("healthFill").objectReferenceValue = hpImg;
+        so.FindProperty("damageFill").objectReferenceValue = dmgImg;
+        so.FindProperty("target").objectReferenceValue = damageable;
+        so.ApplyModifiedProperties();
+        
+        Debug.Log($"Attached Health Bar to {targetName}");
     }
 }
